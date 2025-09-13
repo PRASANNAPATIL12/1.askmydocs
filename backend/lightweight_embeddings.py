@@ -1,12 +1,8 @@
-import google.generativeai as genai
 import numpy as np
 import os
 from typing import List
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-
-# Configure Gemini
-genai.configure(api_key=os.environ.get('GEMINI_API_KEY'))
 
 class LightweightEmbeddings:
     def __init__(self):
