@@ -11,7 +11,9 @@ from pydantic import BaseModel
 from typing import List, Optional
 import PyPDF2
 import io
-import google.generativeai as genai
+
+# Import Emergent integrations
+from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 # Import our lightweight modules
 from database import db
@@ -20,9 +22,8 @@ from lightweight_embeddings import embeddings_engine
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# Configure Gemini
-genai.configure(api_key=os.environ.get('GEMINI_API_KEY'))
-gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+# Configure Emergent LLM
+EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
 
 # Create the main app
 app = FastAPI()
@@ -88,6 +89,41 @@ def chunk_text(text: str, chunk_size: int = 500) -> List[str]:
         chunks.append(' '.join(current_chunk))
     
     return chunks
+
+async def generate_answer_with_emergent_llm(question: str, context: str) -> str:
+    """Generate answer using Emergent Universal API"""
+    try:
+        # Create a unique session ID for this query
+        session_id = f"docubrain_{uuid.uuid4().hex[:8]}"
+        
+        # Initialize the chat with Emergent LLM
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=session_id,
+            system_message="You are a helpful assistant that answers questions based on provided document context. Use only the provided information and be concise."
+        ).with_model("openai", "gpt-4o-mini")  # Using default model as recommended
+        
+        # Create the prompt
+        prompt = f"""Based on the context below, answer the question concisely. Use only the provided information.
+
+Context:
+{context}
+
+Question: {question}
+
+Answer:"""
+        
+        # Create user message
+        user_message = UserMessage(text=prompt)
+        
+        # Send message and get response
+        response = await chat.send_message(user_message)
+        
+        return response
+        
+    except Exception as e:
+        print(f"Error generating response with Emergent LLM: {e}")
+        return f"Error generating response: {str(e)}"
 
 # Initialize database on startup
 @app.on_event("startup")
@@ -260,30 +296,11 @@ async def query_documents(query: QueryRequest, user_id: str = Depends(get_curren
     all_relevant_chunks.sort(key=lambda x: x['relevance_score'], reverse=True)
     top_chunks = all_relevant_chunks[:5]
     
-    # Create context for Gemini
+    # Create context for Emergent LLM
     context = "\n\n".join([chunk['content'] for chunk in top_chunks])
     
-    # Efficient prompt to minimize token usage
-    prompt = f"""Based on the context below, answer the question concisely. Use only the provided information.
-
-Context:
-{context}
-
-Question: {query.question}
-
-Answer:"""
-    
-    try:
-        response = gemini_model.generate_content(
-            prompt,
-            generation_config=genai.types.GenerationConfig(
-                max_output_tokens=200,  # Limit response length for efficiency
-                temperature=0.3  # Lower temperature for more focused responses
-            )
-        )
-        answer = response.text
-    except Exception as e:
-        answer = f"Error generating response: {str(e)}"
+    # Generate answer using Emergent Universal API
+    answer = await generate_answer_with_emergent_llm(query.question, context)
     
     # Prepare sources
     sources = [
