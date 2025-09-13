@@ -162,6 +162,18 @@ backend:
         -agent: "main"
         -comment: "Created detailed project documentation explaining entire system"
 
+  - task: "Create deployment guide"
+    implemented: true
+    working: true
+    file: "DEPLOYMENT_GUIDE.md"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "Created step-by-step deployment guide for Render.com and Vercel"
+
 frontend:
   - task: "No changes required - keep as-is"
     implemented: true
