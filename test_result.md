@@ -102,6 +102,77 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
+user_problem_statement: "Clone GitHub repo AskMyDocs.git and implement required changes: 1) Replace SQLite with MongoDB, 2) Replace Gemini API with Emergent Universal API, 3) Fix PDF upload/querying issues, 4) Keep all existing structure/design unchanged"
+
+backend:
+  - task: "Replace SQLite with MongoDB"
+    implemented: false
+    working: false
+    file: "backend/database.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: false
+        -agent: "main"
+        -comment: "Need to update database.py to use MongoDB instead of SQLite"
+
+  - task: "Replace Gemini API with Emergent Universal API"
+    implemented: false
+    working: false
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: false
+        -agent: "main"
+        -comment: "Need to integrate Emergent Universal API instead of Gemini"
+
+  - task: "Fix PDF processing and embeddings"
+    implemented: false
+    working: false
+    file: "backend/lightweight_embeddings.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: false
+        -agent: "main"
+        -comment: "PDF uploads work but querying doesn't retrieve answers properly"
+
+frontend:
+  - task: "No changes required - keep as-is"
+    implemented: true
+    working: true
+    file: "frontend/src/App.js"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "Frontend should remain unchanged as per user requirements"
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 0
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Replace SQLite with MongoDB"
+    - "Replace Gemini API with Emergent Universal API"
+    - "Fix PDF processing and embeddings"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Starting implementation - cloned DocuBrain repository successfully, now implementing required database and API changes while preserving existing structure"
+
 user_problem_statement: "Clone DocuBrain repository and convert from MongoDB to lightweight local database (SQLite), replace heavy ML models with lightweight alternatives, and use provided Gemini API key efficiently for resume project purposes - COMPLETED SUCCESSFULLY"
 
 backend:
