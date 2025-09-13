@@ -1,0 +1,19 @@
+{
+  "name": "docubrain",
+  "version": "1.0.0",
+  "description": "DocuBrain - AI-powered document intelligence platform",
+  "main": "index.js",
+  "scripts": {
+    "install-all": "yarn install && cd frontend && yarn install && cd ../backend && python -m pip install -r requirements.txt",
+    "build": "cd frontend && yarn build",
+    "start": "concurrently \"cd backend && python -m uvicorn server:app --host 0.0.0.0 --port $PORT\" \"cd frontend && npx serve -s build -l 3000\"",
+    "dev": "concurrently \"cd backend && python -m uvicorn server:app --host 0.0.0.0 --port 8000 --reload\" \"cd frontend && yarn start\""
+  },
+  "keywords": ["ai", "documents", "rag", "fastapi", "react"],
+  "author": "DocuBrain Team",
+  "license": "MIT",
+  "dependencies": {
+    "concurrently": "^8.2.0",
+    "serve": "^14.2.0"
+  }
+}

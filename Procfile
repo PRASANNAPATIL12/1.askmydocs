@@ -1,0 +1,1 @@
+web: concurrently "cd backend && python -m uvicorn server:app --host 0.0.0.0 --port $PORT" "cd frontend && npx serve -s build -l 3000"

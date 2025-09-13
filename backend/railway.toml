@@ -1,0 +1,15 @@
+[build]
+builder = "nixpacks"
+buildCommand = "pip install -r requirements.txt"
+
+[deploy]
+startCommand = "uvicorn server:app --host 0.0.0.0 --port $PORT"
+healthcheckPath = "/docs"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"
+
+[variables]
+MONGO_URL = "mongodb+srv://prasannagoudasp12_db_user:2rat2RsQQSYG5Mb1@cluster0.ygmxyov.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+DB_NAME = "DocuBrain"
+GEMINI_API_KEY = "AIzaSyA3dRlGjSFwwKjCnq1vgaHfrMx36mJE22c"
+CORS_ORIGINS = "*"

@@ -1,0 +1,14 @@
+[phases.setup]
+nixPkgs = ["nodejs-18_x", "python311", "yarn"]
+
+[phases.install]
+cmds = [
+    "cd frontend && yarn install",
+    "cd backend && python -m pip install -r requirements.txt"
+]
+
+[phases.build] 
+cmds = ["cd frontend && yarn build"]
+
+[start]
+cmd = "concurrently \"cd backend && python -m uvicorn server:app --host 0.0.0.0 --port $PORT\" \"cd frontend && npx serve -s build -l 3000\""
