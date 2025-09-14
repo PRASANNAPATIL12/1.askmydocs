@@ -77,7 +77,7 @@ DocuBrain/
 - `verify_token(token)`: Validates authentication tokens
 - `extract_text_from_pdf(file_content)`: Extracts text from PDF files using PyPDF2
 - `chunk_text(text, chunk_size=500)`: Splits text into chunks for processing
-- `generate_answer_with_emergent_llm(question, context)`: Generates AI responses using Emergent Universal API
+- `generate_answer_with_openai(question, context)`: Generates AI responses using Emergent Universal API
 
 **API Endpoints**:
 - `POST /api/auth/register`: User registration
