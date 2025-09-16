@@ -13,7 +13,7 @@ import PyPDF2
 import io
 
 # Import Emergent integrations
-# from emergentintegrations.llm.chat import LlmChat, UserMessage
+from emergentintegrations.llm.chat import LlmChat, UserMessage
 from openai import AsyncOpenAI
 
 
