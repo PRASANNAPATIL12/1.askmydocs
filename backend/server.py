@@ -13,8 +13,15 @@ from typing import List, Optional
 import PyPDF2
 import io
 
-# Import LiteLLM for OpenAI integration
-import litellm
+# Import Emergent integrations
+try:
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    EMERGENT_AVAILABLE = True
+    print("✅ Emergent integrations loaded successfully")
+except ImportError as e:
+    EMERGENT_AVAILABLE = False
+    print(f"❌ Emergent integrations not available: {e}")
+    print("⚠️ Falling back to simple responses")
 
 # Import our lightweight modules
 from database import db
@@ -23,9 +30,8 @@ from lightweight_embeddings import embeddings_engine
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# Configure LiteLLM with Emergent Universal API
+# Configure Emergent LLM
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
-litellm.api_key = EMERGENT_LLM_KEY
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -99,9 +105,22 @@ def chunk_text(text: str, chunk_size: int = 500) -> List[str]:
     
     return chunks
 
-async def generate_answer_with_llm(question: str, context: str) -> str:
-    """Generate answer using LiteLLM with Emergent Universal API"""
+async def generate_answer_with_emergent_llm(question: str, context: str) -> str:
+    """Generate answer using Emergent Universal API"""
     try:
+        if not EMERGENT_AVAILABLE:
+            return f"Based on the provided context, here's what I found: {context[:200]}... Please install emergentintegrations for full AI responses."
+        
+        # Create a unique session ID for this query
+        session_id = f"docubrain_{uuid.uuid4().hex[:8]}"
+        
+        # Initialize the chat with Emergent LLM
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=session_id,
+            system_message="You are a helpful assistant that answers questions based on provided document context. Use only the provided information and be concise."
+        ).with_model("openai", "gpt-4o-mini")  # Using default model as recommended
+        
         # Create the prompt
         prompt = f"""Based on the context below, answer the question concisely. Use only the provided information.
 
@@ -112,22 +131,18 @@ Question: {question}
 
 Answer:"""
         
-        # Use LiteLLM for completion
-        response = await litellm.acompletion(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that answers questions based on provided document context. Use only the provided information and be concise."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=200,
-            temperature=0.3
-        )
+        # Create user message
+        user_message = UserMessage(text=prompt)
         
-        return response.choices[0].message.content
+        # Send message and get response
+        response = await chat.send_message(user_message)
+        
+        return response
         
     except Exception as e:
-        print(f"Error generating response with LiteLLM: {e}")
-        return f"Error generating response: {str(e)}"
+        print(f"Error generating response with Emergent LLM: {e}")
+        # Fallback to context-based response
+        return f"Based on the provided documents: {context[:300]}... (Error: {str(e)})"
 
 # Authentication endpoints
 @api_router.post("/auth/register")
@@ -303,8 +318,8 @@ async def query_documents(query: QueryRequest, user_id: str = Depends(get_curren
     # Create context for LLM
     context = "\n\n".join([chunk['content'] for chunk in top_chunks])
     
-    # Generate answer using LiteLLM
-    answer = await generate_answer_with_llm(query.question, context)
+    # Generate answer using Emergent Universal API
+    answer = await generate_answer_with_emergent_llm(query.question, context)
     
     # Prepare sources
     sources = [
