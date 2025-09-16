@@ -2,20 +2,19 @@ from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 import os
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from pydantic import BaseModel
 from typing import List, Optional
 import PyPDF2
 import io
 
-# Import Emergent integrations
-from emergentintegrations.llm.chat import LlmChat, UserMessage
-from openai import AsyncOpenAI
-
+# Import LiteLLM for OpenAI integration
+import litellm
 
 # Import our lightweight modules
 from database import db
@@ -24,11 +23,19 @@ from lightweight_embeddings import embeddings_engine
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# Configure Emergent LLM
+# Configure LiteLLM with Emergent Universal API
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
+litellm.api_key = EMERGENT_LLM_KEY
 
-# Create the main app
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    await db.init_db()
+    yield
+    # Shutdown (if needed)
+
+# Create the main app with lifespan
+app = FastAPI(lifespan=lifespan)
 api_router = APIRouter(prefix="/api")
 security = HTTPBearer()
 
@@ -92,19 +99,9 @@ def chunk_text(text: str, chunk_size: int = 500) -> List[str]:
     
     return chunks
 
-async def generate_answer_with_emergent_llm(question: str, context: str) -> str:
-    """Generate answer using Emergent Universal API"""
+async def generate_answer_with_llm(question: str, context: str) -> str:
+    """Generate answer using LiteLLM with Emergent Universal API"""
     try:
-        # Create a unique session ID for this query
-        session_id = f"docubrain_{uuid.uuid4().hex[:8]}"
-        
-        # Initialize the chat with Emergent LLM
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=session_id,
-            system_message="You are a helpful assistant that answers questions based on provided document context. Use only the provided information and be concise."
-        ).with_model("openai", "gpt-4o-mini")  # Using default model as recommended
-        
         # Create the prompt
         prompt = f"""Based on the context below, answer the question concisely. Use only the provided information.
 
@@ -115,72 +112,22 @@ Question: {question}
 
 Answer:"""
         
-        # Create user message
-        user_message = UserMessage(text=prompt)
+        # Use LiteLLM for completion
+        response = await litellm.acompletion(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that answers questions based on provided document context. Use only the provided information and be concise."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=200,
+            temperature=0.3
+        )
         
-        # Send message and get response
-        response = await chat.send_message(user_message)
-        
-        return response
+        return response.choices[0].message.content
         
     except Exception as e:
-        print(f"Error generating response with Emergent LLM: {e}")
+        print(f"Error generating response with LiteLLM: {e}")
         return f"Error generating response: {str(e)}"
-
-
-
-
-
-
-
-
-# async def generate_answer_with_emergent_llm(question: str, context: str) -> str:
-#     """Generate answer using OpenAI API directly"""
-#     try:
-#         client = AsyncOpenAI(api_key=os.environ.get("EMERGENT_LLM_KEY"))
-
-#         prompt = f"""Based on the context below, answer the question concisely. 
-#         Use only the provided information.
-
-#         Context:
-#         {context}
-
-#         Question: {question}
-
-#         Answer:"""
-
-#         response = await client.chat.completions.create(
-#             model="gpt-4o-mini",
-#             messages=[
-#                 {
-#                     "role": "system",
-#                     "content": "You are a helpful assistant that answers questions based on provided document context. Use only the provided information and be concise."
-#                 },
-#                 {"role": "user", "content": prompt}
-#             ],
-#             max_tokens=200,
-#             temperature=0.3
-#         )
-
-#         return response.choices[0].message.content
-
-#     except Exception as e:
-#         print(f"Error generating response with OpenAI: {e}")
-#         return f"Error generating response: {str(e)}"
-
-
-
-
-
-
-
-
-
-
-# Initialize database on startup
-@app.on_event("startup")
-async def startup_event():
-    await db.init_db()
 
 # Authentication endpoints
 @api_router.post("/auth/register")
@@ -199,7 +146,7 @@ async def register(user_data: UserCreate):
         "username": user_data.username,
         "password": user_data.password,  # Store plain password for simplicity
         "api_key": api_key,
-        "created_at": datetime.utcnow()
+        "created_at": datetime.now(timezone.utc)
     }
     
     success = await db.create_user(user)
@@ -253,7 +200,7 @@ async def upload_document(
     if not text.strip():
         raise HTTPException(status_code=400, detail="Could not extract text from PDF")
     
-    # Process document with lightweight embeddings
+    # Process document with improved embeddings
     chunks = chunk_text(text)
     embeddings = embeddings_engine.get_embeddings_tfidf(chunks)
     
@@ -266,7 +213,7 @@ async def upload_document(
         "content": text,
         "chunks": chunks,
         "embeddings": embeddings,
-        "upload_time": datetime.utcnow(),
+        "upload_time": datetime.now(timezone.utc),
         "chunk_count": len(chunks),
         "status": "completed"
     }
@@ -286,7 +233,7 @@ async def add_text_document(
     if not content.strip():
         raise HTTPException(status_code=400, detail="Content cannot be empty")
     
-    # Process text with lightweight embeddings
+    # Process text with improved embeddings
     chunks = chunk_text(content)
     embeddings = embeddings_engine.get_embeddings_tfidf(chunks)
     
@@ -299,7 +246,7 @@ async def add_text_document(
         "content": content,
         "chunks": chunks,
         "embeddings": embeddings,
-        "upload_time": datetime.utcnow(),
+        "upload_time": datetime.now(timezone.utc),
         "chunk_count": len(chunks),
         "status": "completed"
     }
@@ -324,19 +271,24 @@ async def query_documents(query: QueryRequest, user_id: str = Depends(get_curren
     if not documents:
         raise HTTPException(status_code=400, detail="No documents found. Please upload some documents first.")
     
-    # Find relevant chunks across all documents using lightweight embeddings
+    # Find relevant chunks across all documents using improved embeddings
     all_relevant_chunks = []
     
     for doc in documents:
-        relevant_chunks = embeddings_engine.find_relevant_chunks(
-            query.question, 
-            doc["chunks"], 
-            doc["embeddings"]
-        )
-        
-        for chunk in relevant_chunks:
-            chunk['filename'] = doc['filename']
-            all_relevant_chunks.append(chunk)
+        try:
+            relevant_chunks = embeddings_engine.find_relevant_chunks(
+                query.question, 
+                doc["chunks"], 
+                doc["embeddings"]
+            )
+            
+            for chunk in relevant_chunks:
+                chunk['filename'] = doc['filename']
+                all_relevant_chunks.append(chunk)
+        except Exception as e:
+            print(f"Error processing document {doc.get('filename', 'unknown')}: {e}")
+            # Continue with other documents
+            continue
     
     if not all_relevant_chunks:
         return QueryResponse(
@@ -348,11 +300,11 @@ async def query_documents(query: QueryRequest, user_id: str = Depends(get_curren
     all_relevant_chunks.sort(key=lambda x: x['relevance_score'], reverse=True)
     top_chunks = all_relevant_chunks[:5]
     
-    # Create context for Emergent LLM
+    # Create context for LLM
     context = "\n\n".join([chunk['content'] for chunk in top_chunks])
     
-    # Generate answer using Emergent Universal API
-    answer = await generate_answer_with_emergent_llm(query.question, context)
+    # Generate answer using LiteLLM
+    answer = await generate_answer_with_llm(query.question, context)
     
     # Prepare sources
     sources = [
