@@ -92,81 +92,85 @@ def chunk_text(text: str, chunk_size: int = 500) -> List[str]:
     
     return chunks
 
-# async def generate_answer_with_openai(question: str, context: str) -> str:
-#     """Generate answer using Emergent Universal API"""
+async def generate_answer_with_emergent_llm(question: str, context: str) -> str:
+    """Generate answer using Emergent Universal API"""
+    try:
+        # Create a unique session ID for this query
+        session_id = f"docubrain_{uuid.uuid4().hex[:8]}"
+        
+        # Initialize the chat with Emergent LLM
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=session_id,
+            system_message="You are a helpful assistant that answers questions based on provided document context. Use only the provided information and be concise."
+        ).with_model("openai", "gpt-4o-mini")  # Using default model as recommended
+        
+        # Create the prompt
+        prompt = f"""Based on the context below, answer the question concisely. Use only the provided information.
+
+Context:
+{context}
+
+Question: {question}
+
+Answer:"""
+        
+        # Create user message
+        user_message = UserMessage(text=prompt)
+        
+        # Send message and get response
+        response = await chat.send_message(user_message)
+        
+        return response
+        
+    except Exception as e:
+        print(f"Error generating response with Emergent LLM: {e}")
+        return f"Error generating response: {str(e)}"
+
+
+
+
+
+
+
+
+# async def generate_answer_with_emergent_llm(question: str, context: str) -> str:
+#     """Generate answer using OpenAI API directly"""
 #     try:
-#         # Create a unique session ID for this query
-#         session_id = f"docubrain_{uuid.uuid4().hex[:8]}"
-        
-#         # Initialize the chat with Emergent LLM
-#         chat = LlmChat(
-#             api_key=EMERGENT_LLM_KEY,
-#             session_id=session_id,
-#             system_message="You are a helpful assistant that answers questions based on provided document context. Use only the provided information and be concise."
-#         ).with_model("openai", "gpt-4o-mini")  # Using default model as recommended
-        
-#         # Create the prompt
-#         prompt = f"""Based on the context below, answer the question concisely. Use only the provided information.
+#         client = AsyncOpenAI(api_key=os.environ.get("EMERGENT_LLM_KEY"))
 
-# Context:
-# {context}
+#         prompt = f"""Based on the context below, answer the question concisely. 
+#         Use only the provided information.
 
-# Question: {question}
+#         Context:
+#         {context}
 
-# Answer:"""
-        
-#         # Create user message
-#         user_message = UserMessage(text=prompt)
-        
-#         # Send message and get response
-#         response = await chat.send_message(user_message)
-        
-#         return response
-        
+#         Question: {question}
+
+#         Answer:"""
+
+#         response = await client.chat.completions.create(
+#             model="gpt-4o-mini",
+#             messages=[
+#                 {
+#                     "role": "system",
+#                     "content": "You are a helpful assistant that answers questions based on provided document context. Use only the provided information and be concise."
+#                 },
+#                 {"role": "user", "content": prompt}
+#             ],
+#             max_tokens=200,
+#             temperature=0.3
+#         )
+
+#         return response.choices[0].message.content
+
 #     except Exception as e:
-#         print(f"Error generating response with Emergent LLM: {e}")
+#         print(f"Error generating response with OpenAI: {e}")
 #         return f"Error generating response: {str(e)}"
 
 
 
 
-
-
-
-
-async def generate_answer_with_openai(question: str, context: str) -> str:
-    """Generate answer using OpenAI API directly"""
-    try:
-        client = AsyncOpenAI(api_key=os.environ.get("EMERGENT_LLM_KEY"))
-
-        prompt = f"""Based on the context below, answer the question concisely. 
-        Use only the provided information.
-
-        Context:
-        {context}
-
-        Question: {question}
-
-        Answer:"""
-
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a helpful assistant that answers questions based on provided document context. Use only the provided information and be concise."
-                },
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=200,
-            temperature=0.3
-        )
-
-        return response.choices[0].message.content
-
-    except Exception as e:
-        print(f"Error generating response with OpenAI: {e}")
-        return f"Error generating response: {str(e)}"
 
 
 
@@ -348,7 +352,7 @@ async def query_documents(query: QueryRequest, user_id: str = Depends(get_curren
     context = "\n\n".join([chunk['content'] for chunk in top_chunks])
     
     # Generate answer using Emergent Universal API
-    answer = await generate_answer_with_openai(query.question, context)
+    answer = await generate_answer_with_emergent_llm(query.question, context)
     
     # Prepare sources
     sources = [

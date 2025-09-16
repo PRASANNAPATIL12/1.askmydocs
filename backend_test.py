@@ -364,13 +364,13 @@ class DocuBrainTester:
         """Test Emergent Universal API integration"""
         try:
             # Import server module to test LLM function
-            from server import generate_answer_with_openai
+            from server import generate_answer_with_emergent_llm
             
             # Test LLM response generation
             test_question = "What is artificial intelligence?"
             test_context = "Artificial intelligence (AI) is a branch of computer science that aims to create intelligent machines."
             
-            response = await generate_answer_with_openai(test_question, test_context)
+            response = await generate_answer_with_emergent_llm(test_question, test_context)
             
             if response and not response.startswith("Error generating response"):
                 self.log_result("Emergent LLM Integration", True, f"LLM response: {response[:100]}...")

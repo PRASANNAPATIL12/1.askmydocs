@@ -86,7 +86,7 @@ async def test_mongodb_direct():
 async def test_emergent_api_direct():
     """Test Emergent Universal API integration directly"""
     try:
-        from server import generate_answer_with_openai
+        from server import generate_answer_with_emergent_llm
         
         print("\n🔍 Testing Emergent Universal API Integration...")
         
@@ -94,7 +94,7 @@ async def test_emergent_api_direct():
         test_question = "What is machine learning?"
         test_context = "Machine learning is a subset of artificial intelligence that enables computers to learn from data without being explicitly programmed."
         
-        response = await generate_answer_with_openai(test_question, test_context)
+        response = await generate_answer_with_emergent_llm(test_question, test_context)
         
         if response and not response.startswith("Error generating response"):
             print("✅ Emergent Universal API response successful")
